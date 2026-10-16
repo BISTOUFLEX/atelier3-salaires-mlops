@@ -1,0 +1,15 @@
+# Données brutes (volumineuses, reconstructibles via data/download_data.sh)
+data/raw/*.csv
+data/raw/*.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Divers
+.DS_Store
+.pytest_cache/
+.env
