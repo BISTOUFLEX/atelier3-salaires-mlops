@@ -7,10 +7,12 @@ import joblib
 import pandas as pd
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.api.schemas import HealthResponse, PredictionRequest, PredictionResponse
 
 MODELS_DIR = Path(__file__).resolve().parent.parent.parent / "models"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 _state: dict = {}
 
@@ -32,10 +34,13 @@ app = FastAPI(
 )
 
 
+app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
+
+
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
-    """Redirige vers la documentation interactive, pour éviter un 404 quand on visite juste le domaine."""
-    return RedirectResponse(url="/docs")
+    """Redirige vers l'interface de démo, pour éviter un 404 quand on visite juste le domaine."""
+    return RedirectResponse(url="/ui")
 
 
 @app.get("/health", response_model=HealthResponse)

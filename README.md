@@ -16,11 +16,13 @@ docker compose up --build
 ```
 
 Puis ouvrir :
-- `http://localhost:8000/docs` — API de prédiction (documentation interactive, testable au clic)
+- `http://localhost:8000` — petite interface de démo (formulaire → prédiction), ou `/docs` pour la
+  documentation Swagger interactive
 - `http://localhost:5000` — MLflow (comparaison des 4 essais : référence, régression linéaire, Random Forest, Gradient Boosting)
+- `http://localhost:9999` — [Dozzle](https://dozzle.dev), logs en direct de tous les conteneurs
 
-Les deux conteneurs (`atelier3-salaires-mlops-api-1` et `atelier3-salaires-mlops-mlflow-1`) sont aussi
-visibles et pilotables (start/stop/logs) depuis Docker Desktop. Pour tout arrêter : `docker compose down`.
+Les trois conteneurs (`atelier3-salaires-mlops-api-1`, `-mlflow-1`, `-logs-1`) sont aussi visibles et
+pilotables (start/stop/logs) depuis Docker Desktop. Pour tout arrêter : `docker compose down`.
 
 Les sections suivantes détaillent chaque brique (données, entraînement, API) pour qui veut lire/modifier
 le code plutôt que simplement le faire tourner.
@@ -85,6 +87,9 @@ uvicorn src.api.main:app --reload
 
 - `GET /health` : statut + modèle chargé + métriques d'entraînement.
 - `POST /predict` : `{"sex": "F", "pcs": "1T3", "department": "75", "year": 2024}` → `{"predicted_salary": ..., "model_used": "..."}`.
+- `GET /ui` : page de démo (formulaire HTML/CSS/JS simple, fichier statique dans `src/api/static/`,
+  aucune dépendance externe) qui appelle `/predict`.
+- `GET /` : redirige vers `/ui`.
 
 ## Docker
 
@@ -96,21 +101,25 @@ docker run -p 8000:8000 salaires-api
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{"sex":"F","pcs":"1T3","department":"75","year":2024}'
 ```
 
-### Docker Compose (API + MLflow, tout dans des conteneurs)
+### Docker Compose (API + MLflow + logs, tout dans des conteneurs)
 
 ```bash
 docker compose up --build
 ```
 
-Démarre deux conteneurs à partir de la **même image** (celle du `Dockerfile`, qui contient déjà tout :
-code, dépendances, modèle) :
+Démarre trois conteneurs :
 
-- `api` : sert les prédictions sur `http://localhost:8000` (doc interactive sur `/docs`).
-- `mlflow` : lance `mlflow ui` sur `http://localhost:5000`, avec `./mlruns` monté en volume pour afficher
-  les vrais essais déjà entraînés (c'est pourquoi ce service a besoin d'un volume : le dossier `mlruns/`
-  n'est pas copié dans l'image, voir `.dockerignore`, pour ne pas figer les logs au moment du build).
+- `api` : sert l'UI de démo et les prédictions sur `http://localhost:8000` (doc interactive sur `/docs`).
+  Construit à partir du `Dockerfile` (code + dépendances + modèle).
+- `mlflow` : **même image** que `api`, mais avec une commande différente (`mlflow ui` au lieu
+  d'`uvicorn`) — inutile de construire une deuxième image puisqu'elle contient déjà MLflow. Sert sur
+  `http://localhost:5000`, avec `./mlruns` monté en volume pour afficher les vrais essais déjà entraînés
+  (volume nécessaire car `mlruns/` n'est pas copié dans l'image, voir `.dockerignore`, pour ne pas figer
+  les logs au moment du build).
+- `logs` : [Dozzle](https://dozzle.dev), un outil tiers minimaliste (une seule image, zéro configuration)
+  qui lit le socket Docker pour afficher les logs de tous les conteneurs en direct sur `http://localhost:9999`.
 
-Les deux conteneurs apparaissent dans Docker Desktop (projet `atelier3-salaires-mlops`) et peuvent être
+Les trois conteneurs apparaissent dans Docker Desktop (projet `atelier3-salaires-mlops`) et peuvent être
 démarrés/arrêtés par clic, sans ligne de commande ni installation Python locale.
 
 ## Tests
@@ -119,7 +128,7 @@ démarrés/arrêtés par clic, sans ligne de commande ni installation Python loc
 pytest -v
 ```
 
-14 tests (module de données, entraînement/MLflow, API) — tous verts.
+15 tests (module de données, entraînement/MLflow, API) — tous verts.
 
 ## Architecture
 
@@ -132,8 +141,9 @@ atelier3-salaires-mlops/
 │   ├── data.py                # chargement + filtrage + feature engineering (partagé train/API)
 │   ├── train.py                # entraînement multi-modèles + tracking MLflow + sélection + export
 │   └── api/
-│       ├── main.py             # app FastAPI (endpoints /predict, /health)
-│       └── schemas.py          # modèles Pydantic (requête/réponse)
+│       ├── main.py             # app FastAPI (endpoints /, /ui, /health, /predict)
+│       ├── schemas.py          # modèles Pydantic (requête/réponse)
+│       └── static/index.html   # page de démo (formulaire HTML/CSS/JS, sans dépendance externe)
 ├── models/
 │   ├── best_model.joblib       # pipeline sklearn complet (prétraitement + modèle)
 │   └── model_card.json         # métadonnées du modèle sélectionné (métriques, catégories vues)
