@@ -2,6 +2,29 @@
 
 Pipeline complet : données Insee (module 2) → entraînement multi-modèles avec suivi MLflow → API FastAPI → image Docker.
 
+## Démarrage rapide (sur n'importe quelle machine)
+
+Le modèle entraîné (`models/best_model.joblib`) et les logs MLflow (`mlruns/`) sont déjà commités dans le
+repo : pas besoin d'installer Python ni de ré-entraîner quoi que ce soit pour faire la démo.
+
+**Seul prérequis : Docker Desktop installé et lancé.**
+
+```bash
+git clone https://github.com/BISTOUFLEX/atelier3-salaires-mlops.git
+cd atelier3-salaires-mlops
+docker compose up --build
+```
+
+Puis ouvrir :
+- `http://localhost:8000/docs` — API de prédiction (documentation interactive, testable au clic)
+- `http://localhost:5000` — MLflow (comparaison des 4 essais : référence, régression linéaire, Random Forest, Gradient Boosting)
+
+Les deux conteneurs (`atelier3-salaires-mlops-api-1` et `atelier3-salaires-mlops-mlflow-1`) sont aussi
+visibles et pilotables (start/stop/logs) depuis Docker Desktop. Pour tout arrêter : `docker compose down`.
+
+Les sections suivantes détaillent chaque brique (données, entraînement, API) pour qui veut lire/modifier
+le code plutôt que simplement le faire tourner.
+
 ## Dataset
 
 Salaires nets mensuels moyens EQTP, secteur privé, par commune/sexe/métier (Insee, via data.gouv.fr).
@@ -16,7 +39,7 @@ Niveau retenu : commune (`GEO_OBJECT == "COM"`). Features : sexe, catégorie soc
 Seules ~14,5 % des lignes commune ont un salaire publié (secret statistique Insee sur les petits effectifs),
 soit environ 81 000 lignes exploitables.
 
-## Installation
+## Installation (pour développer/modifier le code — pas nécessaire pour la démo Docker ci-dessus)
 
 Projet testé avec Python 3.12 (Python 3.14 pose problème : pas encore de wheels précompilées pour pandas/numpy).
 
