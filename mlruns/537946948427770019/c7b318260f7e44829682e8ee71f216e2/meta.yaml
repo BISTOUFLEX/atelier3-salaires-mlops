@@ -1,0 +1,15 @@
+artifact_uri: file:C:\Users\romai\OneDrive\Documents\EPITECH\atelier3-salaires-mlops\mlruns/537946948427770019/c7b318260f7e44829682e8ee71f216e2/artifacts
+end_time: 1792146585503
+entry_point_name: ''
+experiment_id: '537946948427770019'
+lifecycle_stage: active
+run_id: c7b318260f7e44829682e8ee71f216e2
+run_name: gradient_boosting
+run_uuid: c7b318260f7e44829682e8ee71f216e2
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1792146573901
+status: 3
+tags: []
+user_id: romai

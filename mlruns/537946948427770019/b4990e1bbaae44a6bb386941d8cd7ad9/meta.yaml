@@ -1,0 +1,15 @@
+artifact_uri: file:C:\Users\romai\OneDrive\Documents\EPITECH\atelier3-salaires-mlops\mlruns/537946948427770019/b4990e1bbaae44a6bb386941d8cd7ad9/artifacts
+end_time: 1792146546722
+entry_point_name: ''
+experiment_id: '537946948427770019'
+lifecycle_stage: active
+run_id: b4990e1bbaae44a6bb386941d8cd7ad9
+run_name: reference_moyenne
+run_uuid: b4990e1bbaae44a6bb386941d8cd7ad9
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1792146540562
+status: 3
+tags: []
+user_id: romai
