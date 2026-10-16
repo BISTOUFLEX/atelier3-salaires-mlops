@@ -1,0 +1,112 @@
+# Prédiction de salaires — Atelier pratique 3 (Module 3 MLOps)
+
+Pipeline complet : données Insee (module 2) → entraînement multi-modèles avec suivi MLflow → API FastAPI → image Docker.
+
+## Dataset
+
+Salaires nets mensuels moyens EQTP, secteur privé, par commune/sexe/métier (Insee, via data.gouv.fr).
+Réutilisé depuis le module 2. Pour le retélécharger :
+
+```bash
+bash data/download_data.sh
+```
+
+Niveau retenu : commune (`GEO_OBJECT == "COM"`). Features : sexe, catégorie socioprofessionnelle
+(`1T3`=cadres, `4`=prof. intermédiaires, `5`=employés, `6`=ouvriers), département, année.
+Seules ~14,5 % des lignes commune ont un salaire publié (secret statistique Insee sur les petits effectifs),
+soit environ 81 000 lignes exploitables.
+
+## Installation
+
+Projet testé avec Python 3.12 (Python 3.14 pose problème : pas encore de wheels précompilées pour pandas/numpy).
+
+```bash
+python -m venv .venv
+.venv/Scripts/activate   # ou source .venv/bin/activate sur Linux/macOS
+pip install -r requirements.txt
+```
+
+## Entraînement et suivi MLflow
+
+```bash
+python -m src.train
+```
+
+Entraîne 4 modèles (référence, régression linéaire, Random Forest, Gradient Boosting), logue chaque essai
+dans MLflow (`./mlruns`, store local), sélectionne automatiquement le meilleur (RMSE test la plus basse)
+et l'exporte en `models/best_model.joblib`.
+
+Pour comparer visuellement les essais :
+
+```bash
+mlflow ui --backend-store-uri file:./mlruns
+```
+
+### Résultats (dernier entraînement, dataset complet)
+
+| Modèle | MAE test (€) | RMSE test (€) | R² test |
+|---|---|---|---|
+| Référence (moyenne) | 664,9 | 885,9 | 0,00 |
+| Régression linéaire | 239,9 | 464,2 | 0,73 |
+| Random Forest | 221,7 | 454,9 | 0,74 |
+| **Gradient Boosting** (sélectionné) | **216,6** | **449,7** | **0,74** |
+
+Le Gradient Boosting est retenu : il réduit l'erreur RMSE de 49 % par rapport à la référence et reste
+légèrement meilleur que la régression linéaire et la forêt aléatoire.
+
+## API
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+- `GET /health` : statut + modèle chargé + métriques d'entraînement.
+- `POST /predict` : `{"sex": "F", "pcs": "1T3", "department": "75", "year": 2024}` → `{"predicted_salary": ..., "model_used": "..."}`.
+
+## Docker
+
+```bash
+docker build -t salaires-api .
+docker run -p 8000:8000 salaires-api
+curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{"sex":"F","pcs":"1T3","department":"75","year":2024}'
+```
+
+## Tests
+
+```bash
+pytest -v
+```
+
+14 tests (module de données, entraînement/MLflow, API) — tous verts.
+
+## Architecture
+
+```
+atelier3-salaires-mlops/
+├── data/
+│   ├── raw/                  # CSV Insee (non commités, volumineux)
+│   └── download_data.sh      # script de ré-téléchargement reproductible
+├── src/
+│   ├── data.py                # chargement + filtrage + feature engineering (partagé train/API)
+│   ├── train.py                # entraînement multi-modèles + tracking MLflow + sélection + export
+│   └── api/
+│       ├── main.py             # app FastAPI (endpoints /predict, /health)
+│       └── schemas.py          # modèles Pydantic (requête/réponse)
+├── models/
+│   ├── best_model.joblib       # pipeline sklearn complet (prétraitement + modèle)
+│   └── model_card.json         # métadonnées du modèle sélectionné (métriques, catégories vues)
+├── mlruns/                     # store MLflow local (logs des 4 essais)
+├── tests/                      # tests pytest (data, train, api)
+├── requirements.txt
+├── Dockerfile
+└── docs/superpowers/           # design et plan d'implémentation détaillés
+```
+
+## Limites connues
+
+- Une catégorie non vue à l'entraînement (ex. département absent) est encodée à zéro par le `OneHotEncoder`
+  (`handle_unknown="ignore"`) : la prédiction reste possible mais moins fiable.
+- Pas de recherche d'hyperparamètres (`GridSearchCV`) : hyperparamètres fixes, choisis pour rester rapides
+  à exécuter. Le notebook du module 2 contient la recherche complète si besoin de l'approfondir.
+- Secret statistique Insee : les petites communes sont sous-représentées dans les données exploitables.
+- Store MLflow local uniquement (pas de serveur de tracking distant ni de Model Registry en production).
