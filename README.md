@@ -65,11 +65,30 @@ uvicorn src.api.main:app --reload
 
 ## Docker
 
+Image seule (API uniquement) :
+
 ```bash
 docker build -t salaires-api .
 docker run -p 8000:8000 salaires-api
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{"sex":"F","pcs":"1T3","department":"75","year":2024}'
 ```
+
+### Docker Compose (API + MLflow, tout dans des conteneurs)
+
+```bash
+docker compose up --build
+```
+
+Démarre deux conteneurs à partir de la **même image** (celle du `Dockerfile`, qui contient déjà tout :
+code, dépendances, modèle) :
+
+- `api` : sert les prédictions sur `http://localhost:8000` (doc interactive sur `/docs`).
+- `mlflow` : lance `mlflow ui` sur `http://localhost:5000`, avec `./mlruns` monté en volume pour afficher
+  les vrais essais déjà entraînés (c'est pourquoi ce service a besoin d'un volume : le dossier `mlruns/`
+  n'est pas copié dans l'image, voir `.dockerignore`, pour ne pas figer les logs au moment du build).
+
+Les deux conteneurs apparaissent dans Docker Desktop (projet `atelier3-salaires-mlops`) et peuvent être
+démarrés/arrêtés par clic, sans ligne de commande ni installation Python locale.
 
 ## Tests
 
@@ -99,6 +118,7 @@ atelier3-salaires-mlops/
 ├── tests/                      # tests pytest (data, train, api)
 ├── requirements.txt
 ├── Dockerfile
+├── docker-compose.yml           # api + mlflow, lancés comme conteneurs (cf. section Docker)
 └── docs/superpowers/           # design et plan d'implémentation détaillés
 ```
 
